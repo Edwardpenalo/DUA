@@ -142,7 +142,7 @@ function App() {
   return (
     <div className={`app ${theme}`}>
       <header>
-        <h1> DUA Scann</h1>
+        <h1> DUA</h1>
         <p>Advanced Security Audit & Bug Bounty Recon Tool</p>
         <button onClick={toggleTheme} className="theme-toggle">
           {theme === "dark" ? "🌙 Modo Oscuro" : "☀️ Modo Claro"}
@@ -201,10 +201,10 @@ function App() {
               <div key={category} className="module-category">
                 <div className="category-header">
                   <h4>
-                    {category === "basic" && "🔍 Reconocimiento Básico"}
-                    {category === "web" && "🌐 Análisis Web"}
-                    {category === "advanced" && "🚀 Seguridad Avanzada"}
-                    {category === "risk" && "⚠️ Evaluación de Riesgo"}
+                    {category === "basic" && " Reconocimiento Básico"}
+                    {category === "web" && "Análisis Web"}
+                    {category === "advanced" && " Seguridad Avanzada"}
+                    {category === "risk" && " Evaluación de Riesgo"}
                   </h4>
                   <button 
                     className="select-all-btn"
