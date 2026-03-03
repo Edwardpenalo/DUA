@@ -142,7 +142,7 @@ function App() {
   return (
     <div className={`app ${theme}`}>
       <header>
-        <h1>🔍 DUA Scanner Pro</h1>
+        <h1> DUA Scann</h1>
         <p>Advanced Security Audit & Bug Bounty Recon Tool</p>
         <button onClick={toggleTheme} className="theme-toggle">
           {theme === "dark" ? "🌙 Modo Oscuro" : "☀️ Modo Claro"}
@@ -151,7 +151,7 @@ function App() {
 
       <main>
         <section className="config-section">
-          <h2>⚙️ Configuración de Escaneo</h2>
+          <h2> Configuración de Escaneo</h2>
 
           <div className="form-group">
             <label>API Base URL</label>
@@ -177,14 +177,14 @@ function App() {
                 onClick={() => setScanMode("audit")}
                 disabled={loading}
               >
-                🛡️ Audit (Seguro)
+                 Audit (Seguro)
               </button>
               <button
                 className={scanMode === "bug_bounty" ? "active" : ""}
                 onClick={() => setScanMode("bug_bounty")}
                 disabled={loading}
               >
-                🎯 Bug Bounty (Ofensivo)
+                 Bug Bounty (Ofensivo)
               </button>
             </div>
             <small>
@@ -402,24 +402,24 @@ function App() {
           </div>
 
           <button onClick={handleScan} disabled={loading} className="btn-primary">
-            {loading ? "🔄 Escaneando..." : "🚀 Ejecutar Escaneo"}
+            {loading ? "Escaneando..." : " Ejecutar Escaneo"}
           </button>
         </section>
 
         {error && (
           <div className="error-box">
-            <strong>❌ Error:</strong> {error}
+            <strong>Error:</strong> {error}
           </div>
         )}
 
         {result && (
           <section className="results-section">
-            <h2>📊 Resultados del Escaneo</h2>
+            <h2> Resultados del Escaneo</h2>
             
             {/* Risk Summary */}
             {result.risk_summary && (
               <div className="risk-summary-card">
-                <h3>⚠️ Resumen de Riesgo</h3>
+                <h3> Resumen de Riesgo</h3>
                 <div className="risk-score">
                   <div className="score-circle" data-score={result.risk_summary.overall_score}>
                     <span className="score-value">{result.risk_summary.overall_score.toFixed(1)}</span>
@@ -428,29 +428,29 @@ function App() {
                   <div className="findings-summary">
                     {result.risk_summary.critical_findings > 0 && (
                       <div className="finding-badge critical">
-                        🔴 {result.risk_summary.critical_findings} Critical
+                        {result.risk_summary.critical_findings} Critical
                       </div>
                     )}
                     {result.risk_summary.high_findings > 0 && (
                       <div className="finding-badge high">
-                        🟠 {result.risk_summary.high_findings} High
+                         {result.risk_summary.high_findings} High
                       </div>
                     )}
                     {result.risk_summary.medium_findings > 0 && (
                       <div className="finding-badge medium">
-                        🟡 {result.risk_summary.medium_findings} Medium
+                        {result.risk_summary.medium_findings} Medium
                       </div>
                     )}
                     {result.risk_summary.low_findings > 0 && (
                       <div className="finding-badge low">
-                        🟢 {result.risk_summary.low_findings} Low
+                         {result.risk_summary.low_findings} Low
                       </div>
                     )}
                   </div>
                 </div>
                 {scanMode === "bug_bounty" && result.risk_summary.opportunities_list && (
                   <div className="opportunities">
-                    <h4>🎯 Bug Bounty Opportunities</h4>
+                    <h4>Bug Bounty Opportunities</h4>
                     {result.risk_summary.opportunities_list.map((opp, idx) => (
                       <div key={idx} className={`opportunity-card ${opp.severity}`}>
                         <h5>{opp.title}</h5>
@@ -468,10 +468,10 @@ function App() {
             {/* Subdomain Results */}
             {result.subdomains && (
               <div className="result-module">
-                <h3>🌐 Subdominios Encontrados</h3>
+                <h3>Subdominios Encontrados</h3>
                 <p><strong>Total:</strong> {result.subdomains.total} | <strong>Live:</strong> {result.subdomains.live}</p>
                 {result.subdomains.wildcards.length > 0 && (
-                  <div className="warning">⚠️ Wildcard DNS detectado: {result.subdomains.wildcards.join(", ")}</div>
+                  <div className="warning">Wildcard DNS detectado: {result.subdomains.wildcards.join(", ")}</div>
                 )}
                 <div className="subdomain-list">
                   {result.subdomains.subdomains.map((sub, idx) => (
@@ -494,12 +494,12 @@ function App() {
             {/* Parameter Results */}
             {result.parameters && (
               <div className="result-module">
-                <h3>🔍 Parámetros Descubiertos</h3>
+                <h3>Parámetros Descubiertos</h3>
                 <p><strong>Endpoints:</strong> {result.parameters.endpoints.length} | <strong>Parameters:</strong> {result.parameters.parameters.length}</p>
                 
                 {result.parameters.reflection_candidates.length > 0 && (
                   <div className="findings-section">
-                    <h4>🎯 Reflection Candidates (Potential XSS)</h4>
+                    <h4>Reflection Candidates (Potential XSS)</h4>
                     {result.parameters.reflection_candidates.map((ref, idx) => (
                       <div key={idx} className={`finding-card ${ref.confidence}`}>
                         <strong>{ref.url}</strong>
@@ -513,7 +513,7 @@ function App() {
 
                 {result.parameters.open_redirect_hints.length > 0 && (
                   <div className="findings-section">
-                    <h4>🔗 Open Redirect Hints</h4>
+                    <h4> Open Redirect Hints</h4>
                     {result.parameters.open_redirect_hints.map((hint, idx) => (
                       <div key={idx} className={`finding-card ${hint.confidence}`}>
                         <strong>{hint.url}</strong>
@@ -551,7 +551,7 @@ function App() {
             {/* Tech Results */}
             {result.tech && result.tech.length > 0 && (
               <div className="result-module">
-                <h3>🔧 Tecnologías Detectadas ({result.tech.length})</h3>
+                <h3>Tecnologías Detectadas ({result.tech.length})</h3>
                 <div className="tech-grid">
                   {result.tech.map((tech, idx) => (
                     <div key={idx} className="tech-card">
@@ -585,7 +585,7 @@ function App() {
             {/* CMS Results */}
             {result.cms && result.cms.length > 0 && (
               <div className="result-module">
-                <h3>📦 CMS Detectados ({result.cms.length})</h3>
+                <h3> CMS Detectados ({result.cms.length})</h3>
                 <div className="cms-list">
                   {result.cms.map((cms, idx) => (
                     <div key={idx} className="cms-card">
@@ -593,7 +593,7 @@ function App() {
                         <h4>{cms.name}</h4>
                         {cms.version && (
                           <span className="cms-version">
-                            📌 Version {cms.version}
+                             Version {cms.version}
                           </span>
                         )}
                       </div>
