@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -259,14 +260,12 @@ func main() {
 		writeJSON(w, http.StatusOK, out)
 	})
 
-	srv := &http.Server{
-		Addr:              ":8080",
-		Handler:           withCORS(mux),
-		ReadHeaderTimeout: 10 * time.Second,
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
 	}
-
-	log.Println("DUA API running on http://localhost:8080")
-	log.Fatal(srv.ListenAndServe())
+	log.Printf("API escuchando en :%s", port)
+	log.Fatal(http.ListenAndServe(":"+port, withCORS(mux)))
 }
 
 func clientIP(r *http.Request) string {
