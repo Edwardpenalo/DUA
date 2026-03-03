@@ -132,14 +132,24 @@ func main() {
 					out.Errors = append(out.Errors, scan.ModuleError{Module: "tech", Message: "run http module first"})
 					continue
 				}
-				out.Tech = fingerprint.FromHTTP(out.HTTP.Headers, htmlSnippet)
+				// Convertir headers de map[string]string a map[string][]string
+				headersSlice := make(map[string][]string)
+				for k, v := range out.HTTP.Headers {
+					headersSlice[k] = []string{v}
+				}
+				out.Tech = fingerprint.FromHTTP(headersSlice, htmlSnippet)
 
 			case "cms":
 				if out.HTTP == nil {
 					out.Errors = append(out.Errors, scan.ModuleError{Module: "cms", Message: "run http module first"})
 					continue
 				}
-				out.CMS = cms.Detect(out.HTTP.FinalURL, out.HTTP.Headers, htmlSnippet)
+				// Convertir headers de map[string]string a map[string][]string
+				headersSlice := make(map[string][]string)
+				for k, v := range out.HTTP.Headers {
+					headersSlice[k] = []string{v}
+				}
+				out.CMS = cms.FromHTTP(headersSlice, htmlSnippet)
 			case "headers":
 				if out.HTTP == nil {
 					out.Errors = append(out.Errors, scan.ModuleError{Module: "headers", Message: "run http module first"})

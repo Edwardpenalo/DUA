@@ -1,117 +1,155 @@
 package cms
 
 import (
+	"fmt"
+	"regexp"
 	"strings"
 
 	"dua/internal/scan"
 )
 
-func Detect(finalURL string, headers map[string]string, html string) []scan.CMSFinding {
-	var out []scan.CMSFinding
+func FromHTTP(headers map[string][]string, body string) []scan.CMSFinding {
+	var findings []scan.CMSFinding
+	detected := make(map[string]bool)
 
-	hl := strings.ToLower(html)
-
-	// --- WordPress fingerprints ---
-	{
-		var ev []string
-		conf := 0
-
-		// HTML paths
-		if strings.Contains(hl, "/wp-content/") {
-			ev = append(ev, "html: contains /wp-content/")
-			conf += 45
-		}
-		if strings.Contains(hl, "/wp-includes/") {
-			ev = append(ev, "html: contains /wp-includes/")
-			conf += 35
-		}
-
-		// generator tag
-		if strings.Contains(hl, `name="generator"`) && strings.Contains(hl, "wordpress") {
-			ev = append(ev, `html: meta generator mentions wordpress`)
-			conf += 40
-		}
-
-		// common endpoints referenced
-		if strings.Contains(hl, "wp-emoji-release.min.js") {
-			ev = append(ev, "html: wp-emoji-release.min.js")
-			conf += 20
-		}
-
-		// cookies
-		if v, ok := headers["Set-Cookie"]; ok {
-			cl := strings.ToLower(v)
-			if strings.Contains(cl, "wordpress_logged_in") {
-				ev = append(ev, "cookie: wordpress_logged_in")
-				conf += 50
-			}
-			if strings.Contains(cl, "wp-settings-") {
-				ev = append(ev, "cookie: wp-settings-*")
-				conf += 25
-			}
-		}
-
-		if conf >= 60 {
-			if conf > 100 {
-				conf = 100
-			}
-			out = append(out, scan.CMSFinding{
-				Name:       "wordpress",
-				Confidence: conf,
-				Evidence:   ev,
+	// Check meta generator
+	generatorRegex := regexp.MustCompile(`<meta[^>]*name=["']?generator["']?[^>]*content=["']([^"']+)["']`)
+	if matches := generatorRegex.FindStringSubmatch(body); len(matches) > 1 {
+		generator := matches[1]
+		name, version := parseGenerator(generator)
+		if name != "" && !detected[name] {
+			findings = append(findings, scan.CMSFinding{
+				Name:       name,
+				Version:    version,
+				Confidence: 90,
+				Evidence:   []string{fmt.Sprintf("Meta generator: %s", generator)},
 			})
+			detected[name] = true
 		}
 	}
 
-	// --- Moodle fingerprints ---
-	{
-		var ev []string
-		conf := 0
+	// WordPress
+	if detectWordPress(body) && !detected["WordPress"] {
+		version := extractWordPressVersion(body)
+		findings = append(findings, scan.CMSFinding{
+			Name:       "WordPress",
+			Version:    version,
+			Confidence: 85,
+			Evidence:   []string{"wp-content paths", "wp-includes paths"},
+		})
+		detected["WordPress"] = true
+	}
 
-		// common moodle paths / patterns
-		if strings.Contains(hl, "/login/index.php") {
-			ev = append(ev, "html: contains /login/index.php")
-			conf += 40
-		}
-		if strings.Contains(hl, "/course/") {
-			ev = append(ev, "html: contains /course/")
-			conf += 20
-		}
-		if strings.Contains(hl, "/theme/") {
-			ev = append(ev, "html: contains /theme/")
-			conf += 15
-		}
-		if strings.Contains(hl, "moodle") && strings.Contains(hl, "login") {
-			ev = append(ev, "html: contains moodle + login")
-			conf += 15
-		}
+	// Joomla
+	if detectJoomla(body) && !detected["Joomla"] {
+		version := extractJoomlaVersion(body)
+		findings = append(findings, scan.CMSFinding{
+			Name:       "Joomla",
+			Version:    version,
+			Confidence: 80,
+			Evidence:   []string{"Joomla components detected"},
+		})
+		detected["Joomla"] = true
+	}
 
-		// cookies
-		if v, ok := headers["Set-Cookie"]; ok {
-			cl := strings.ToLower(v)
-			if strings.Contains(cl, "moodlesession") {
-				ev = append(ev, "cookie: MoodleSession")
-				conf += 55
-			}
-		}
+	// Drupal
+	if detectDrupal(body) && !detected["Drupal"] {
+		version := extractDrupalVersion(body)
+		findings = append(findings, scan.CMSFinding{
+			Name:       "Drupal",
+			Version:    version,
+			Confidence: 80,
+			Evidence:   []string{"Drupal paths and scripts detected"},
+		})
+		detected["Drupal"] = true
+	}
 
-		// sometimes finalURL hints
-		if strings.Contains(strings.ToLower(finalURL), "/login/index.php") {
-			ev = append(ev, "url: final_url contains /login/index.php")
-			conf += 20
-		}
+	// Moodle
+	if detectMoodle(body) && !detected["Moodle"] {
+		version := extractMoodleVersion(body)
+		findings = append(findings, scan.CMSFinding{
+			Name:       "Moodle",
+			Version:    version,
+			Confidence: 75,
+			Evidence:   []string{"Moodle theme and scripts detected"},
+		})
+		detected["Moodle"] = true
+	}
 
-		if conf >= 60 {
-			if conf > 100 {
-				conf = 100
-			}
-			out = append(out, scan.CMSFinding{
-				Name:       "moodle",
-				Confidence: conf,
-				Evidence:   ev,
-			})
+	return findings
+}
+
+func parseGenerator(generator string) (string, string) {
+	parts := strings.Fields(generator)
+	if len(parts) == 0 {
+		return "", ""
+	}
+
+	name := parts[0]
+	version := ""
+
+	if len(parts) > 1 {
+		versionRegex := regexp.MustCompile(`([\d.]+)`)
+		if matches := versionRegex.FindStringSubmatch(parts[1]); len(matches) > 0 {
+			version = matches[1]
 		}
 	}
 
-	return out
+	return name, version
+}
+
+func detectWordPress(body string) bool {
+	return strings.Contains(body, "wp-content") || strings.Contains(body, "wp-includes")
+}
+
+func extractWordPressVersion(body string) string {
+	regex := regexp.MustCompile(`<meta name="generator" content="WordPress ([\d.]+)`)
+	if matches := regex.FindStringSubmatch(body); len(matches) > 1 {
+		return matches[1]
+	}
+
+	regex = regexp.MustCompile(`wp-(?:content|includes)[^"]*\?ver=([\d.]+)`)
+	if matches := regex.FindStringSubmatch(body); len(matches) > 1 {
+		return matches[1]
+	}
+
+	return ""
+}
+
+func detectJoomla(body string) bool {
+	return strings.Contains(body, "components/com_") || strings.Contains(body, "/modules/mod_")
+}
+
+func extractJoomlaVersion(body string) string {
+	regex := regexp.MustCompile(`<meta name="generator" content="Joomla![^"]*Version ([\d.]+)`)
+	if matches := regex.FindStringSubmatch(body); len(matches) > 1 {
+		return matches[1]
+	}
+	return ""
+}
+
+func detectDrupal(body string) bool {
+	bodyLower := strings.ToLower(body)
+	return strings.Contains(bodyLower, "/sites/default/") || strings.Contains(bodyLower, "drupal")
+}
+
+func extractDrupalVersion(body string) string {
+	regex := regexp.MustCompile(`<meta name="Generator" content="Drupal ([\d.]+)`)
+	if matches := regex.FindStringSubmatch(body); len(matches) > 1 {
+		return matches[1]
+	}
+	return ""
+}
+
+func detectMoodle(body string) bool {
+	bodyLower := strings.ToLower(body)
+	return strings.Contains(bodyLower, "/theme/moodle/") || strings.Contains(bodyLower, "moodle")
+}
+
+func extractMoodleVersion(body string) string {
+	regex := regexp.MustCompile(`Moodle\s+([\d.]+)`)
+	if matches := regex.FindStringSubmatch(body); len(matches) > 1 {
+		return matches[1]
+	}
+	return ""
 }
