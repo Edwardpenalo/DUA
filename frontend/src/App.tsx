@@ -4,8 +4,6 @@ import type { ScanRequest, ScanResult, ModuleId, ScanMode } from "./types";
 import "./styles.css";
 
 function App() {
-  // Cambiado a la URL de producción
-  const [apiBaseUrl] = useState("https://dua-eyda.onrender.com"); // Usa proxy local
   const [target, setTarget] = useState("");
   const [selectedModules, setSelectedModules] = useState<ModuleId[]>(["http"]);
   const [scanMode, setScanMode] = useState<ScanMode>("audit");
