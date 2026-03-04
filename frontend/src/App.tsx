@@ -4,7 +4,9 @@ import type { ScanRequest, ScanResult, ModuleId, ScanMode } from "./types";
 import "./styles.css";
 
 function App() {
-  const [apiBaseUrl] = useState("http://localhost:8080");
+  const [apiBaseUrl] = useState(
+    import.meta.env.VITE_API_BASE_URL || "http://localhost:8080"
+  );
   const [target, setTarget] = useState("");
   const [selectedModules, setSelectedModules] = useState<ModuleId[]>(["http"]);
   const [scanMode, setScanMode] = useState<ScanMode>("audit");
