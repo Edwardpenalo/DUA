@@ -4,9 +4,8 @@ import type { ScanRequest, ScanResult, ModuleId, ScanMode } from "./types";
 import "./styles.css";
 
 function App() {
-  const [apiBaseUrl] = useState(
-    import.meta.env.VITE_API_BASE_URL || "http://localhost:8080"
-  );
+  // Cambiado a la URL de producción
+  const [apiBaseUrl] = useState("https://dua-eyda.onrender.com"); // Usa proxy local
   const [target, setTarget] = useState("");
   const [selectedModules, setSelectedModules] = useState<ModuleId[]>(["http"]);
   const [scanMode, setScanMode] = useState<ScanMode>("audit");
@@ -154,12 +153,6 @@ function App() {
       <main>
         <section className="config-section">
           <h2> Configuración de Escaneo</h2>
-
-          <div className="form-group">
-            <label>API Base URL</label>
-            <input type="text" value={apiBaseUrl} disabled />
-          </div>
-
           <div className="form-group">
             <label>Target</label>
             <input
