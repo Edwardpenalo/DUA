@@ -292,7 +292,28 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 func withCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
+		origin := r.Header.Get("Origin")
+
+		// Permitir localhost + Netlify + Render
+		allowedOrigins := []string{
+			"http://localhost:3000",
+			"http://localhost:5173",
+		}
+
+		// Permitir cualquier subdominio de netlify.app y onrender.com
+		if strings.HasSuffix(origin, ".netlify.app") ||
+			strings.HasSuffix(origin, ".onrender.com") ||
+			origin == "https://dua-eyda.onrender.com" {
+			allowedOrigins = append(allowedOrigins, origin)
+		}
+
+		for _, allowed := range allowedOrigins {
+			if origin == allowed {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				break
+			}
+		}
+
 		w.Header().Set("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
