@@ -2,8 +2,8 @@ import type { ScanRequest, ScanResult } from "./types";
 
 // Endpoint para la función de escaneo
 const scanEndpoint = import.meta.env.PROD
-  ? "/.netlify/functions/scan"
-  : `${import.meta.env.VITE_API_BASE_URL || "https://dua-eyda.onrender.com"}/scan`;
+  ? "/api/scan"
+  : `${import.meta.env.VITE_API_BASE_URL || "http://localhost:8080"}/scan`;
 
 export async function scanTarget(payload: ScanRequest): Promise<ScanResult> {
   const response = await fetch(scanEndpoint, {
