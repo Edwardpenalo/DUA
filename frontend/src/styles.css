@@ -163,12 +163,11 @@ h3 {
 }
 
 h2::before {
-  content: "⚙️";
-  font-size: 1.5rem;
+  content: "";
 }
 
 .results-section h2::before {
-  content: "📊";
+  content: "";
 }
 
 .form-group {
@@ -738,3 +737,56 @@ summary:hover {
   .grid { grid-template-columns: 1fr; }
   .hero { flex-direction: column; align-items: flex-start; }
 }
+
+/* Auth consent checkbox */
+.auth-consent {
+  margin-top: 1rem;
+  padding: 1rem 1.25rem;
+  border-radius: 10px;
+  border: 1px solid var(--warning);
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.auth-consent label {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.auth-consent input[type="checkbox"] {
+  margin-top: 3px;
+  accent-color: var(--warning);
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
+/* Badge for severity */
+.badge {
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.badge.critical { background: #7f1d1d; color: #fca5a5; }
+.badge.high     { background: #7f1d1d; color: #fca5a5; }
+.badge.medium   { background: #78350f; color: #fcd34d; }
+.badge.low      { background: #1e3a5f; color: #93c5fd; }
+.badge.info     { background: #1e3a5f; color: #93c5fd; }
+
+/* Finding cards for medium confidence */
+.finding-card.low {
+  border-color: var(--info);
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.finding-card a {
+  color: var(--primary);
+  word-break: break-all;
+}
+

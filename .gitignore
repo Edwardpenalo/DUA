@@ -1,0 +1,22 @@
+# Node
+frontend/node_modules/
+frontend/.vite/
+
+# Frontend build
+frontend/dist/
+frontend/tsconfig.tsbuildinfo
+
+# Go build artifacts
+backend/*.exe
+backend/*.out
+backend/*.test
+
+# Installer outputs
+installer/output/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

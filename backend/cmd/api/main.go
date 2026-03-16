@@ -7,20 +7,29 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
+	"runtime"
 	"strings"
 	"time"
 
+	"dua/internal/apidiscovery"
+	"dua/internal/auth"
 	"dua/internal/cms"
+	"dua/internal/cors"
 	"dua/internal/direnum"
 	"dua/internal/dnsintel"
 	"dua/internal/fingerprint"
 	"dua/internal/httpprobe"
+	"dua/internal/injections"
+	"dua/internal/parameters"
 	"dua/internal/portscan"
 	"dua/internal/risk"
 	"dua/internal/scan"
 	"dua/internal/secheaders"
+	"dua/internal/subdomain"
 	"dua/internal/tlsinfo"
 	"dua/internal/vuln"
+	"dua/internal/webui"
 )
 
 func main() {
@@ -29,14 +38,22 @@ func main() {
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("ok"))
 	})
+	mux.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("ok"))
+	})
 
 	mux.HandleFunc("/netintel/myip", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{
 			"ip": clientIP(r),
 		})
 	})
+	mux.HandleFunc("/api/netintel/myip", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"ip": clientIP(r),
+		})
+	})
 
-	mux.HandleFunc("/scan", func(w http.ResponseWriter, r *http.Request) {
+	scanHandler := func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return
@@ -68,6 +85,7 @@ func main() {
 		out := scan.Result{
 			Target:     req.Target,
 			Modules:    req.Modules,
+			Mode:       req.Mode,
 			StartedAt:  start.Format(time.RFC3339),
 			FinishedAt: "",
 		}
@@ -78,6 +96,14 @@ func main() {
 			normalizedModule := strings.ToLower(strings.TrimSpace(m))
 			log.Printf("[DEBUG] ===== Iniciando módulo: %s =====", normalizedModule)
 			moduleStart := time.Now()
+
+			isActiveModule := normalizedModule == "ports" || normalizedModule == "dirs"
+			if req.Mode == scan.ModeBugBounty && isActiveModule && !req.IHaveAuthorization {
+				out.Errors = append(out.Errors, scan.ModuleError{
+					Module:  normalizedModule,
+					Message: "authorization flag missing: set i_have_authorization=true for audited active scans",
+				})
+			}
 
 			switch normalizedModule { // ← Normaliza el input
 
@@ -210,6 +236,94 @@ func main() {
 				rep := vuln.Run(out, htmlSnippet, vuln.Options{Timeout: 6 * time.Second})
 				out.Vuln = &rep
 
+			case "subdomains":
+				enum := subdomain.New(subdomain.SubdomainOptions{
+					Timeout:           req.Options.TimeoutSeconds,
+					PassiveOnly:       req.Options.SubdomainPassiveOnly,
+					ActiveDNSBrute:    req.Options.SubdomainActiveDNSBrute,
+					ResolveSubdomains: req.Options.SubdomainResolve,
+					ProbeHTTP:         req.Options.SubdomainProbeHTTP,
+				})
+
+				rep, err := enum.Run(r.Context(), req.Target)
+				if err != nil {
+					out.Errors = append(out.Errors, scan.ModuleError{Module: "subdomains", Message: err.Error()})
+					continue
+				}
+				out.Subdomains = rep
+
+			case "parameters":
+				if out.HTTP == nil {
+					res, err := httpprobe.Run(
+						req.Target,
+						time.Duration(req.Options.TimeoutSeconds)*time.Second,
+						req.Options.MaxRedirects,
+					)
+					if err != nil {
+						out.Errors = append(out.Errors, scan.ModuleError{Module: "parameters", Message: "http probe required: " + err.Error()})
+						continue
+					}
+					out.HTTP = &scan.HTTPResult{URL: res.URL, FinalURL: res.FinalURL, Status: res.Status, Title: res.Title, Headers: res.Headers}
+					htmlSnippet = res.BodySnippet
+				}
+				rep := parameters.Run(out.HTTP.FinalURL, htmlSnippet, req.Options)
+				out.Parameters = &rep
+
+			case "auth":
+				if out.HTTP == nil {
+					res, err := httpprobe.Run(
+						req.Target,
+						time.Duration(req.Options.TimeoutSeconds)*time.Second,
+						req.Options.MaxRedirects,
+					)
+					if err != nil {
+						out.Errors = append(out.Errors, scan.ModuleError{Module: "auth", Message: "http probe required: " + err.Error()})
+						continue
+					}
+					out.HTTP = &scan.HTTPResult{URL: res.URL, FinalURL: res.FinalURL, Status: res.Status, Title: res.Title, Headers: res.Headers}
+					htmlSnippet = res.BodySnippet
+				}
+				rep := auth.Analyze(
+					out.HTTP.FinalURL,
+					out.HTTP.Headers,
+					htmlSnippet,
+					time.Duration(req.Options.TimeoutSeconds)*time.Second,
+				)
+				out.Auth = &rep
+
+			case "api":
+				baseURL := req.Target
+				if out.HTTP != nil && out.HTTP.FinalURL != "" {
+					baseURL = out.HTTP.FinalURL
+				}
+				rep := apidiscovery.Run(baseURL, time.Duration(req.Options.TimeoutSeconds)*time.Second)
+				out.API = &rep
+
+			case "cors":
+				baseURL := req.Target
+				if out.HTTP != nil && out.HTTP.FinalURL != "" {
+					baseURL = out.HTTP.FinalURL
+				}
+				rep := cors.Analyze(baseURL, time.Duration(req.Options.TimeoutSeconds)*time.Second)
+				out.CORS = &rep
+
+			case "injections":
+				if out.HTTP == nil {
+					res, err := httpprobe.Run(
+						req.Target,
+						time.Duration(req.Options.TimeoutSeconds)*time.Second,
+						req.Options.MaxRedirects,
+					)
+					if err != nil {
+						out.Errors = append(out.Errors, scan.ModuleError{Module: "injections", Message: "http probe required: " + err.Error()})
+						continue
+					}
+					out.HTTP = &scan.HTTPResult{URL: res.URL, FinalURL: res.FinalURL, Status: res.Status, Title: res.Title, Headers: res.Headers}
+					htmlSnippet = res.BodySnippet
+				}
+				rep := injections.Analyze(out.HTTP.FinalURL, htmlSnippet)
+				out.Injections = &rep
+
 			case "tlsinfo":
 				host := req.Target
 				host = strings.TrimPrefix(host, "http://")
@@ -257,15 +371,57 @@ func main() {
 		}
 
 		out.FinishedAt = time.Now().UTC().Format(time.RFC3339)
+		out.DurationSeconds = time.Since(start).Seconds()
 		writeJSON(w, http.StatusOK, out)
-	})
+	}
+
+	mux.HandleFunc("/scan", scanHandler)
+	mux.HandleFunc("/api/scan", scanHandler)
+
+	if webui.HasAssets() {
+		mux.Handle("/", webui.Handler())
+		log.Printf("Frontend embebido habilitado")
+	} else {
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/" {
+				writeJSON(w, http.StatusOK, map[string]any{
+					"name":    "DUA API",
+					"status":  "ok",
+					"message": "Frontend no embebido. Usa /scan o /api/scan.",
+				})
+				return
+			}
+			http.NotFound(w, r)
+		})
+	}
 
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
+	if os.Getenv("DUA_OPEN_BROWSER") != "false" {
+		go func(p string) {
+			time.Sleep(700 * time.Millisecond)
+			openBrowser("http://127.0.0.1:" + p)
+		}(port)
+	}
 	log.Printf("API escuchando en :%s", port)
 	log.Fatal(http.ListenAndServe(":"+port, withCORS(mux)))
+}
+
+func openBrowser(url string) {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+	case "darwin":
+		cmd = exec.Command("open", url)
+	default:
+		cmd = exec.Command("xdg-open", url)
+	}
+	if err := cmd.Start(); err != nil {
+		log.Printf("No se pudo abrir navegador automáticamente: %v", err)
+	}
 }
 
 func clientIP(r *http.Request) string {

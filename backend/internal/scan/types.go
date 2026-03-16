@@ -221,9 +221,11 @@ func ContextWithTimeout(parent context.Context, timeout time.Duration) (context.
 
 // Legacy types for backward compatibility
 type Request struct {
-	Target  string   `json:"target"`
-	Modules []string `json:"modules"`
-	Options Options  `json:"options"`
+	Target             string   `json:"target"`
+	Modules            []string `json:"modules"`
+	Mode               ScanMode `json:"mode,omitempty"`
+	IHaveAuthorization bool     `json:"i_have_authorization,omitempty"`
+	Options            Options  `json:"options"`
 }
 
 type Options struct {
@@ -233,24 +235,45 @@ type Options struct {
 	PortEnd         int `json:"port_end"`
 	PortTimeoutMs   int `json:"port_timeout_ms"`
 	PortConcurrency int `json:"port_concurrency"`
+
+	// Subdomain options
+	SubdomainPassiveOnly    bool `json:"subdomain_passive_only"`
+	SubdomainActiveDNSBrute bool `json:"subdomain_active_dns_brute"`
+	SubdomainResolve        bool `json:"subdomain_resolve"`
+	SubdomainProbeHTTP      bool `json:"subdomain_probe_http"`
+
+	// Parameter discovery options
+	ParamCrawlDepth       int  `json:"param_crawl_depth"`
+	ParamTestReflection   bool `json:"param_test_reflection"`
+	ParamTestOpenRedirect bool `json:"param_test_open_redirect"`
+	ParamMaxPages         int  `json:"param_max_pages"`
 }
 
 type Result struct {
-	Target     string         `json:"target"`
-	Modules    []string       `json:"modules"`
-	StartedAt  string         `json:"started_at"`
-	FinishedAt string         `json:"finished_at"`
-	HTTP       *HTTPResult    `json:"http,omitempty"`
-	Tech       []TechFinding  `json:"tech,omitempty"`
-	CMS        []CMSFinding   `json:"cms,omitempty"`
-	Errors     []ModuleError  `json:"errors,omitempty"`
-	Dirs       []DirFinding   `json:"dirs,omitempty"`
-	Ports      []PortFinding  `json:"ports,omitempty"`
-	TLS        []TLSFinding   `json:"tls,omitempty"`
-	Headers    *HeadersReport `json:"headers,omitempty"`
-	DNS        *DNSReport     `json:"dns,omitempty"`
-	Vuln       *VulnReport    `json:"vuln,omitempty"`
-	Risk       *RiskReport    `json:"risk,omitempty"`
+	Target          string                  `json:"target"`
+	Modules         []string                `json:"modules"`
+	Mode            ScanMode                `json:"mode,omitempty"`
+	StartedAt       string                  `json:"started_at"`
+	FinishedAt      string                  `json:"finished_at"`
+	DurationSeconds float64                 `json:"duration_seconds,omitempty"`
+	HTTP            *HTTPResult             `json:"http,omitempty"`
+	Tech            []TechFinding           `json:"tech,omitempty"`
+	CMS             []CMSFinding            `json:"cms,omitempty"`
+	Errors          []ModuleError           `json:"errors,omitempty"`
+	Dirs            []DirFinding            `json:"dirs,omitempty"`
+	Ports           []PortFinding           `json:"ports,omitempty"`
+	TLS             []TLSFinding            `json:"tls,omitempty"`
+	Headers         *HeadersReport          `json:"headers,omitempty"`
+	DNS             *DNSReport              `json:"dns,omitempty"`
+	Vuln            *VulnReport             `json:"vuln,omitempty"`
+	Risk            *RiskReport             `json:"risk,omitempty"`
+	Subdomains      *SubdomainResult        `json:"subdomains,omitempty"`
+	Parameters      *ParameterResult        `json:"parameters,omitempty"`
+	Auth            *AuthResult             `json:"auth,omitempty"`
+	API             *APIResult              `json:"api,omitempty"`
+	CORS            *CORSResult             `json:"cors,omitempty"`
+	Injections      *InjectionSignalsResult `json:"injections,omitempty"`
+	RiskSummary     *RiskSummary            `json:"risk_summary,omitempty"`
 }
 
 type DirFinding struct {

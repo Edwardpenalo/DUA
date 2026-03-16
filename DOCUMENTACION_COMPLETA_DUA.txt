@@ -1,0 +1,280 @@
+DUA - DOCUMENTACION COMPLETA DE MODULOS, ARCHIVOS Y EJECUCION
+Fecha: 2026-03-16
+
+============================================================
+1. EJECUTABLE FINAL (UNICO)
+============================================================
+Se empaqueto todo en un solo ejecutable:
+
+Ruta:
+- backend\DUA.exe
+
+Que incluye:
+- Backend API (Go)
+- Frontend compilado (React/Vite) embebido dentro del binario
+
+Como usar:
+1) Doble click en backend\DUA.exe
+2) Se levanta servidor local (por defecto puerto 8080)
+3) Se abre en navegador (http://127.0.0.1:8080)
+
+Nota:
+- Se eliminaron ejecutables viejos (app.exe, api.exe, dua-api.exe)
+- Quedo solo DUA.exe
+
+============================================================
+2. ARQUITECTURA GENERAL
+============================================================
+- frontend/: interfaz visual (React + TypeScript + Vite)
+- backend/: motor de escaneo y API (Go)
+- backend/internal/webui/: frontend embebido para servirlo desde el mismo exe
+
+Flujo:
+Usuario -> Frontend embebido -> /api/scan -> Modulos internos -> Resultado JSON -> UI
+
+============================================================
+3. MODULOS BACKEND (QUE HACE CADA UNO)
+============================================================
+
+3.1 http (httpprobe)
+Archivo: backend/internal/httpprobe/httpprobe.go
+Funcion principal: Run(target, timeout, maxRedirects)
+Hace:
+- prueba https/http
+- obtiene status, title, headers, final_url
+- guarda snippet HTML para otros modulos
+
+3.2 dns (dnsintel)
+Archivo: backend/internal/dnsintel/dnsintel.go
+Funcion principal: Resolve(target)
+Hace:
+- A/AAAA
+- CNAME
+- MX
+- NS
+- PTR
+
+3.3 ports (portscan)
+Archivo: backend/internal/portscan/portscan.go
+Funcion principal: Run(host, options)
+Hace:
+- escaneo de puertos TCP por rango
+- clasificacion de servicio probable
+
+3.4 tlsinfo
+Archivo: backend/internal/tlsinfo/tlsinfo.go
+Funcion principal: Inspect(host, port, options)
+Hace:
+- inspeccion de certificado TLS
+- version TLS y cipher suite
+- validez/expiracion
+
+3.5 headers (secheaders)
+Archivo: backend/internal/secheaders/secheaders.go
+Funcion principal: Analyze(headers)
+Hace:
+- score de hardening
+- hallazgos por cabecera
+- recomendaciones
+
+3.6 tech (fingerprint)
+Archivo: backend/internal/fingerprint/fingerprint.go
+Funcion principal: FromHTTP(headers, html)
+Hace:
+- deteccion de stack tecnologico
+- evidencia por headers/metatags/scripts
+
+3.7 cms
+Archivo: backend/internal/cms/detect.go
+Funcion principal: FromHTTP(headers, body)
+Hace:
+- deteccion de CMS (WordPress, Joomla, Drupal, Moodle)
+- version cuando se puede inferir
+
+3.8 dirs (direnum)
+Archivo: backend/internal/direnum/direnum.go
+Funcion principal: Run(baseURL, headers, htmlSnippet, options)
+Hace:
+- enumeracion de rutas comunes
+- clasificacion por status/redirect/evidencia
+
+3.9 subdomains
+Archivo: backend/internal/subdomain/subdomain.go
+Funcion principal: Enumerator.Run(ctx, target)
+Hace:
+- fuentes pasivas (CT y DNS)
+- brute DNS controlado
+- resolve A/AAAA
+- probe HTTP opcional
+- wildcard detection
+
+3.10 parameters
+Archivo: backend/internal/parameters/run.go
+Funcion principal: Run(pageURL, htmlSnippet, opts)
+Hace:
+- parseo de query strings
+- parseo de formularios
+- candidatos de reflejo
+- hints de open redirect
+
+3.11 auth
+Archivo: backend/internal/auth/auth.go
+Funcion principal: Analyze(targetURL, headers, htmlSnippet, timeout)
+Hace:
+- deteccion de formularios login
+- deteccion de token CSRF por patrones
+- chequeo flags cookie (HttpOnly/Secure/SameSite)
+- prueba controlada de rate-limit
+
+3.12 api (apidiscovery)
+Archivo: backend/internal/apidiscovery/apidiscovery.go
+Funcion principal: Run(baseURL, timeout)
+Hace:
+- discovery de rutas swagger/openapi/graphql
+- clasifica endpoints detectados
+
+3.13 cors
+Archivo: backend/internal/cors/cors.go
+Funcion principal: Analyze(targetURL, timeout)
+Hace:
+- preflight OPTIONS controlado
+- analisis Access-Control-* y severidad
+
+3.14 injections
+Archivo: backend/internal/injections/injections.go
+Funcion principal: Analyze(pageURL, htmlSnippet)
+Hace:
+- linter pasivo para reflejo XSS
+- señales SQLi por patrones simples (sin inyeccion activa)
+
+3.15 vuln
+Archivos:
+- backend/internal/vuln/vuln.go
+- backend/internal/vuln/detect.go
+- backend/internal/vuln/providers/osv.go
+Funcion principal: Run(out, htmlSnippet, opts)
+Hace:
+- detecta componentes/versiones
+- correlaciona con OSV cuando aplica
+- recomendaciones de remediacion
+
+3.16 risk
+Archivo: backend/internal/risk/engine.go
+Funcion principal: Evaluate(out)
+Hace:
+- scoring agregado de riesgo
+- prioriza findings
+- resumen final
+
+3.17 tipos y contratos
+Archivo: backend/internal/scan/types.go
+Hace:
+- modelos Request/Result
+- contratos de findings
+- estructuras para frontend
+
+3.18 webui embebido
+Archivo: backend/internal/webui/webui.go
+Hace:
+- embebe frontend/dist con go:embed
+- sirve index.html y assets
+- fallback SPA routes
+
+============================================================
+4. ENTRYPOINT API
+============================================================
+Archivo: backend/cmd/api/main.go
+Endpoints:
+- /api/health
+- /api/netintel/myip
+- /api/scan
+Compatibles legacy:
+- /health
+- /netintel/myip
+- /scan
+
+Tambien:
+- sirve frontend en / cuando assets embebidos existen
+- puede abrir navegador automaticamente al iniciar
+
+============================================================
+5. ARCHIVOS CLAVE DE BUILD Y DEPENDENCIAS
+============================================================
+
+5.1 go.mod
+Archivo: backend/go.mod
+Contenido actual:
+- module dua
+- go 1.25.0
+- require golang.org/x/net v0.51.0
+
+5.2 Dockerfile
+Archivo: backend/Dockerfile
+Funcion:
+- etapa builder (golang alpine)
+- compila API
+- imagen final alpine minimal
+
+Nota:
+- Dockerfile actual arma backend API, no empaquetado desktop
+- para desktop se usa DUA.exe
+
+5.3 package.json
+Archivo: frontend/package.json
+Scripts:
+- dev: vite
+- build: tsc -b && vite build
+- preview: vite preview
+Dependencias:
+- react
+- react-dom
+- vite
+- typescript
+
+============================================================
+6. COMO RECONSTRUIR EL EXE UNICO
+============================================================
+Proceso recomendado:
+1) Build frontend:
+   - cd frontend
+   - npm run build
+2) Copiar frontend/dist a backend/internal/webui/dist
+3) Build backend final:
+   - cd backend
+   - go build -ldflags "-s -w" -o DUA.exe ./cmd/api
+
+Resultado:
+- backend\DUA.exe (todo en uno)
+
+============================================================
+7. REQUISITOS PARA USUARIO FINAL
+============================================================
+Para usar el .exe final:
+- Windows x64
+- No requiere Node ni Go instalados
+- Solo ejecutar DUA.exe
+
+Opcional recomendado:
+- Permitir en Firewall si se bloquea localhost
+- Ejecutar como usuario normal (admin no es requerido)
+
+============================================================
+8. EMPAQUETADO INSTALABLE (SIGUIENTE PASO)
+============================================================
+Si quieres instalador real (Next -> Next -> Finish):
+- usar Inno Setup o NSIS
+- incluir DUA.exe
+- crear acceso directo
+- desinstalador
+- opcion iniciar app al finalizar instalacion
+
+============================================================
+9. ESTADO ACTUAL
+============================================================
+- Un solo ejecutable funcional: backend\DUA.exe
+- Frontend embebido funcionando en /
+- API funcional en /api/scan
+- Emojis eliminados en UI
+- Ejecutables antiguos eliminados
+
+FIN

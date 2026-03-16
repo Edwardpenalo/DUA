@@ -30,6 +30,9 @@ function App() {
   const [paramTestRedirect, setParamTestRedirect] = useState(true);
   const [paramMaxPages, setParamMaxPages] = useState(50);
 
+  // Authorization flag for active modules
+  const [iHaveAuthorization, setIHaveAuthorization] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ScanResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -52,12 +55,12 @@ function App() {
     { id: "dirs", name: "Directory Enum", desc: "Rutas descubiertas / wordlist", category: "web" },
     
     // Advanced security (new modules)
-    { id: "subdomains", name: "🆕 Subdomain Enum", desc: "CT logs + DNS brute + HTTP probe", category: "advanced" },
-    { id: "parameters", name: "🆕 Parameter Discovery", desc: "Crawl + reflection + redirect hints", category: "advanced" },
-    { id: "auth", name: "🆕 Auth Analysis", desc: "Login pages + session issues + IDOR", category: "advanced" },
-    { id: "api", name: "🆕 API Discovery", desc: "Swagger/OpenAPI + GraphQL endpoints", category: "advanced" },
-    { id: "cors", name: "🆕 CORS Analyzer", desc: "Origin reflection + misconfigurations", category: "advanced" },
-    { id: "injections", name: "🆕 Injection Signals", desc: "XSS/SQLi markers (safe detection)", category: "advanced" },
+    { id: "subdomains", name: "Subdomain Enum", desc: "CT logs + DNS brute + HTTP probe", category: "advanced" },
+    { id: "parameters", name: "Parameter Discovery", desc: "Crawl + reflection + redirect hints", category: "advanced" },
+    { id: "auth", name: "Auth Analysis", desc: "Login pages + session issues + IDOR", category: "advanced" },
+    { id: "api", name: "API Discovery", desc: "Swagger/OpenAPI + GraphQL endpoints", category: "advanced" },
+    { id: "cors", name: "CORS Analyzer", desc: "Origin reflection + misconfigurations", category: "advanced" },
+    { id: "injections", name: "Injection Signals", desc: "XSS/SQLi markers (safe detection)", category: "advanced" },
     
     // Risk assessment
     { id: "vuln", name: "Vulnerability Check", desc: "Hallazgos por componentes detectados", category: "risk" },
@@ -103,6 +106,7 @@ function App() {
       target: target.trim(),
       modules: selectedModules,
       mode: scanMode,
+      i_have_authorization: iHaveAuthorization,
       options: {
         timeout_seconds: timeout,
         max_redirects: maxRedirects,
@@ -144,7 +148,7 @@ function App() {
         <h1> DUA</h1>
         <p>Advanced Security Audit & Bug Bounty Recon Tool</p>
         <button onClick={toggleTheme} className="theme-toggle">
-          {theme === "dark" ? "🌙 Modo Oscuro" : "☀️ Modo Claro"}
+          {theme === "dark" ? "Modo Oscuro" : "Modo Claro"}
         </button>
       </header>
 
@@ -395,8 +399,24 @@ function App() {
           </div>
 
           <button onClick={handleScan} disabled={loading} className="btn-primary">
-            {loading ? "Escaneando..." : " Ejecutar Escaneo"}
+            {loading ? "Escaneando..." : "Ejecutar Escaneo"}
           </button>
+
+          {(selectedModules.includes("ports") || selectedModules.includes("dirs")) && (
+            <div className="auth-consent">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={iHaveAuthorization}
+                  onChange={(e) => setIHaveAuthorization(e.target.checked)}
+                  disabled={loading}
+                />
+                <span>
+                  Confirmo que tengo autorización para escanear este objetivo activamente (requerido para <strong>ports</strong> / <strong>dirs</strong> en modo Bug Bounty)
+                </span>
+              </label>
+            </div>
+          )}
         </section>
 
         {error && (
@@ -463,20 +483,20 @@ function App() {
               <div className="result-module">
                 <h3>Subdominios Encontrados</h3>
                 <p><strong>Total:</strong> {result.subdomains.total} | <strong>Live:</strong> {result.subdomains.live}</p>
-                {result.subdomains.wildcards.length > 0 && (
-                  <div className="warning">Wildcard DNS detectado: {result.subdomains.wildcards.join(", ")}</div>
+                {(result.subdomains.wildcards ?? []).length > 0 && (
+                  <div className="warning">Wildcard DNS detectado: {result.subdomains.wildcards!.join(", ")}</div>
                 )}
                 <div className="subdomain-list">
-                  {result.subdomains.subdomains.map((sub, idx) => (
+                  {(result.subdomains.subdomains ?? []).map((sub, idx) => (
                     <div key={idx} className={`subdomain-item ${sub.live ? "live" : "dead"}`}>
                       <div className="subdomain-name">
-                        {sub.live ? "✅" : "❌"} {sub.name}
+                        {sub.live ? "Activo" : "Inactivo"} - {sub.name}
                       </div>
-                      {sub.ipv4 && <div className="subdomain-ip">{sub.ipv4.join(", ")}</div>}
+                      {(sub.ipv4 ?? []).length > 0 && <div className="subdomain-ip">{sub.ipv4!.join(", ")}</div>}
                       {sub.title && <div className="subdomain-title">{sub.title}</div>}
                       <div className="subdomain-meta">
-                        <span>Source: {sub.source}</span>
-                        {sub.status_code && <span>Status: {sub.status_code}</span>}
+                        <span>Fuente: {sub.source}</span>
+                        {sub.status_code && <span> · Status: {sub.status_code}</span>}
                       </div>
                     </div>
                   ))}
@@ -488,56 +508,54 @@ function App() {
             {result.parameters && (
               <div className="result-module">
                 <h3>Parámetros Descubiertos</h3>
-                <p><strong>Endpoints:</strong> {result.parameters.endpoints.length} | <strong>Parameters:</strong> {result.parameters.parameters.length}</p>
+                <p><strong>Endpoints:</strong> {(result.parameters.endpoints ?? []).length} | <strong>Parámetros:</strong> {(result.parameters.parameters ?? []).length}</p>
                 
-                {result.parameters.reflection_candidates.length > 0 && (
+                {(result.parameters.reflection_candidates ?? []).length > 0 && (
                   <div className="findings-section">
-                    <h4>Reflection Candidates (Potential XSS)</h4>
-                    {result.parameters.reflection_candidates.map((ref, idx) => (
+                    <h4>Reflection Candidates (Posible XSS)</h4>
+                    {result.parameters.reflection_candidates!.map((ref, idx) => (
                       <div key={idx} className={`finding-card ${ref.confidence}`}>
                         <strong>{ref.url}</strong>
-                        <p>Parameter: <code>{ref.parameter}</code></p>
-                        <p>Type: {ref.reflection_type} | Confidence: {ref.confidence}</p>
-                        <p>Evidence: {ref.evidence}</p>
+                        <p>Parámetro: <code>{ref.parameter}</code></p>
+                        <p>Tipo: {ref.reflection_type} | Confianza: {ref.confidence}</p>
+                        <p>{ref.evidence}</p>
                       </div>
                     ))}
                   </div>
                 )}
 
-                {result.parameters.open_redirect_hints.length > 0 && (
+                {(result.parameters.open_redirect_hints ?? []).length > 0 && (
                   <div className="findings-section">
-                    <h4> Open Redirect Hints</h4>
-                    {result.parameters.open_redirect_hints.map((hint, idx) => (
+                    <h4>Open Redirect Hints</h4>
+                    {result.parameters.open_redirect_hints!.map((hint, idx) => (
                       <div key={idx} className={`finding-card ${hint.confidence}`}>
                         <strong>{hint.url}</strong>
-                        <p>Parameter: <code>{hint.parameter}</code></p>
+                        <p>Parámetro: <code>{hint.parameter}</code></p>
                         <p>{hint.evidence}</p>
                       </div>
                     ))}
                   </div>
                 )}
 
-                <details>
-                  <summary>Ver todos los parámetros ({result.parameters.parameters.length})</summary>
-                  <table className="params-table">
-                    <thead>
-                      <tr>
-                        <th>Nombre</th>
-                        <th>Sources</th>
-                        <th>Locations</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {result.parameters.parameters.map((param, idx) => (
-                        <tr key={idx}>
-                          <td><code>{param.name}</code></td>
-                          <td>{param.sources.join(", ")}</td>
-                          <td>{param.locations.length} URLs</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </details>
+                {(result.parameters.parameters ?? []).length > 0 && (
+                  <details>
+                    <summary>Ver todos los parámetros ({(result.parameters.parameters ?? []).length})</summary>
+                    <table className="params-table">
+                      <thead>
+                        <tr><th>Nombre</th><th>Sources</th><th>Locations</th></tr>
+                      </thead>
+                      <tbody>
+                        {result.parameters.parameters!.map((param, idx) => (
+                          <tr key={idx}>
+                            <td><code>{param.name}</code></td>
+                            <td>{(param.sources ?? []).join(", ")}</td>
+                            <td>{(param.locations ?? []).length} URLs</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </details>
+                )}
               </div>
             )}
 
@@ -578,7 +596,7 @@ function App() {
             {/* CMS Results */}
             {result.cms && result.cms.length > 0 && (
               <div className="result-module">
-                <h3> CMS Detectados ({result.cms.length})</h3>
+                <h3>CMS Detectados ({result.cms.length})</h3>
                 <div className="cms-list">
                   {result.cms.map((cms, idx) => (
                     <div key={idx} className="cms-card">
@@ -606,6 +624,126 @@ function App() {
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Auth Analysis */}
+            {result.auth && (
+              <div className="result-module">
+                <h3>Auth Analysis</h3>
+
+                {(result.auth.login_pages ?? []).length > 0 && (
+                  <div className="findings-section">
+                    <h4>Login Pages ({result.auth.login_pages!.length})</h4>
+                    {result.auth.login_pages!.map((lp, idx) => (
+                      <div key={idx} className="finding-card medium">
+                        <strong>{lp.url}</strong>
+                        <p>Form Action: <code>{lp.form_action}</code></p>
+                        <p>Tipo: {lp.auth_type}</p>
+                        <p>Campos: {(lp.input_fields ?? []).join(", ")}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {(result.auth.session_issues ?? []).length > 0 && (
+                  <div className="findings-section">
+                    <h4>Problemas de Sesión ({result.auth.session_issues!.length})</h4>
+                    {result.auth.session_issues!.map((si, idx) => (
+                      <div key={idx} className={`finding-card ${si.severity}`}>
+                        <strong>{(si.type ?? "").split("_").join(" ").toUpperCase()}</strong>
+                        <p>Severidad: <strong>{si.severity}</strong></p>
+                        <p>{si.evidence}</p>
+                        {si.cookie && <p><small>Cookie: <code>{si.cookie.substring(0, 120)}</code></small></p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {(result.auth.session_issues ?? []).length === 0 && (result.auth.login_pages ?? []).length === 0 && (
+                  <p style={{ opacity: 0.7 }}>No se detectaron páginas de login ni problemas de sesión.</p>
+                )}
+                <p><small>Tiempo: {result.auth.execution_time_ms}ms</small></p>
+              </div>
+            )}
+
+            {/* CORS Results */}
+            {result.cors && (result.cors.findings ?? []).length > 0 && (
+              <div className="result-module">
+                <h3>CORS Analysis</h3>
+                {result.cors.findings!.map((f, idx) => (
+                  <div key={idx} className={`finding-card ${f.severity === "critical" || f.severity === "high" ? "high" : f.severity === "medium" ? "medium" : "low"}`}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <strong>{f.url}</strong>
+                      <span className={`badge sev-${f.severity}`}>{f.severity.toUpperCase()}</span>
+                    </div>
+                    {f.allow_origin && <p>Allow-Origin: <code>{f.allow_origin}</code></p>}
+                    <p>Credentials: <strong>{f.allow_credentials ? "SI (riesgo)" : "No"}</strong></p>
+                    <p>Explotable: {f.exploitable ? "SI" : "No"}</p>
+                    <p>{f.exploitability_notes}</p>
+                  </div>
+                ))}
+                <p><small>Tiempo: {result.cors.execution_time_ms}ms</small></p>
+              </div>
+            )}
+
+            {/* API Discovery */}
+            {result.api && ((result.api.swagger_endpoints ?? []).length > 0 || (result.api.graphql_endpoints ?? []).length > 0) && (
+              <div className="result-module">
+                <h3>API Discovery</h3>
+                {(result.api.swagger_endpoints ?? []).length > 0 && (
+                  <div className="findings-section">
+                    <h4>Swagger / OpenAPI</h4>
+                    {result.api.swagger_endpoints!.map((ep, idx) => (
+                      <div key={idx} className="finding-card high">
+                        <a href={ep} target="_blank" rel="noopener noreferrer">{ep}</a>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {(result.api.graphql_endpoints ?? []).length > 0 && (
+                  <div className="findings-section">
+                    <h4>GraphQL</h4>
+                    {result.api.graphql_endpoints!.map((ep, idx) => (
+                      <div key={idx} className="finding-card medium">
+                        <a href={ep} target="_blank" rel="noopener noreferrer">{ep}</a>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p><small>Tiempo: {result.api.execution_time_ms}ms</small></p>
+              </div>
+            )}
+
+            {/* Injection Signals */}
+            {result.injections && ((result.injections.xss_signals ?? []).length > 0 || (result.injections.sqli_signals ?? []).length > 0) && (
+              <div className="result-module">
+                <h3>Injection Signals</h3>
+                {(result.injections.xss_signals ?? []).length > 0 && (
+                  <div className="findings-section">
+                    <h4>XSS Reflection Signals ({result.injections.xss_signals!.length})</h4>
+                    {result.injections.xss_signals!.map((sig, idx) => (
+                      <div key={idx} className="finding-card high">
+                        <strong>{sig.url}</strong>
+                        <p>Param: <code>{sig.parameter}</code> | Confianza: {sig.confidence}</p>
+                        <p>{sig.evidence}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {(result.injections.sqli_signals ?? []).length > 0 && (
+                  <div className="findings-section">
+                    <h4>SQLi Pattern Signals ({result.injections.sqli_signals!.length})</h4>
+                    {result.injections.sqli_signals!.map((sig, idx) => (
+                      <div key={idx} className="finding-card medium">
+                        <strong>{sig.url}</strong>
+                        <p>Param: <code>{sig.parameter}</code> | Confianza: {sig.confidence}</p>
+                        <p>{sig.evidence}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p><small>Tiempo: {result.injections.execution_time_ms}ms</small></p>
               </div>
             )}
 
