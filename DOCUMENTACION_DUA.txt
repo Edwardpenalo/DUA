@@ -1,0 +1,203 @@
+DUA - DOCUMENTACION TECNICA, OPERATIVA Y DE EMPAQUETADO
+Fecha: 2026-03-16
+
+============================================================
+1) RESUMEN EJECUTIVO
+============================================================
+DUA ya esta en un estado funcional y util para auditoria web/host con enfoque de reconocimiento y analisis de riesgo.
+
+Incluye modulos de:
+- HTTP probe
+- DNS intel
+- Port scan
+- TLS info
+- Security headers
+- Fingerprint tecnologico
+- Deteccion CMS
+- Enumeracion de directorios
+- Subdominios
+- Parametros
+- Auth analysis
+- API discovery
+- CORS analysis
+- Injection signals (pasivo)
+- Correlacion de vulnerabilidades
+- Risk scoring
+
+Se corrigieron errores de estabilidad de UI (pantalla en blanco por arrays null) y se eliminaron los emojis del frontend.
+
+============================================================
+2) ARQUITECTURA ACTUAL
+============================================================
+Backend:
+- Lenguaje: Go
+- Entrada API: /scan
+- Puerto por defecto: 8080
+- Modulos en backend/internal/*
+
+Frontend:
+- React + TypeScript + Vite
+- Puerto dev: 3000
+- Consume /scan del backend
+
+Flujo:
+1. Usuario pone dominio/IP y selecciona modulos.
+2. Frontend envia JSON al backend.
+3. Backend ejecuta modulos y devuelve reporte consolidado.
+4. Frontend renderiza hallazgos, tablas y resumen.
+
+============================================================
+3) CONSUMO Y PESO (MEDICION REAL EN TU ENTORNO)
+============================================================
+Build backend (Windows x64):
+- Archivo: dua-api.exe
+- Tamano: 10,609,664 bytes (~10.12 MB)
+
+Build frontend (produccion):
+- JS principal: ~162,575 bytes
+- CSS principal: ~11,228 bytes
+- index.html: ~0.40 KB
+- JS gzip aprox: ~50.65 KB
+
+Memoria backend en reposo (medicion aproximada):
+- WorkingSet64: ~11.56 MB
+- PM (private memory): ~55.60 MB
+- CPU en idle: casi 0
+
+Por que el backend pesa "mucho" para ser un solo exe:
+1. Go genera binarios estaticos con runtime incluido.
+2. Incluye librerias de red, TLS, parseo HTML, DNS, etc.
+3. Tener todo embebido da instalacion simple (sin dependencias del sistema) pero aumenta tamano.
+
+Por que puede consumir mas durante escaneo:
+1. Port scan con alta concurrencia (por defecto 500) abre muchas conexiones/sockets.
+2. Subdomain brute y probes HTTP en paralelo incrementan goroutines y buffers.
+3. Modulos combinados (ports + dirs + subdomains + vuln) elevan CPU y red al mismo tiempo.
+
+Estimacion practica por perfil:
+- Perfil liviano (http, headers, tech): bajo consumo.
+- Perfil medio (dns, cms, vuln, parameters): consumo moderado.
+- Perfil pesado (ports + subdomains + dirs + vuln): consumo alto de red/CPU temporal.
+
+============================================================
+4) OPTIMIZACION RECOMENDADA
+============================================================
+Para reducir consumo sin perder calidad:
+1. Bajar concurrencia de puertos (ej. 500 -> 150 o 200 en equipos modestos).
+2. Limitar rango de puertos por defecto por perfil (top-1000).
+3. Aplicar rate limit global por host/modulo.
+4. Cachear resultados de DNS/subdominios por ventana corta.
+5. Ejecutar modulos pesados por lotes y no todos simultaneamente.
+6. Agregar timeouts por modulo y cancelacion centralizada.
+
+Para reducir peso del exe:
+1. Compilar con strip symbols:
+   go build -ldflags="-s -w" -o dua-api.exe ./cmd/api
+2. Opcional compresion UPX (evaluar AV/false positives).
+3. Evitar dependencias no usadas.
+
+============================================================
+5) QUE HACE FALTA PARA DISTRIBUIR COMO EXE "INSTALAR Y USAR"
+============================================================
+Objetivo: que el usuario instale, se abra en navegador y funcione sin Node/Go instalados.
+
+Recomendacion de producto final:
+A) Ejecutable backend + frontend estatico integrado.
+B) Instalador .exe (Inno Setup o NSIS).
+C) Inicio automatico y apertura de navegador.
+
+Paso tecnico recomendado:
+1. Compilar frontend a dist.
+2. Servir dist desde backend (o embebido con go:embed).
+3. Backend expone:
+   - /api/scan
+   - / (frontend)
+4. Al iniciar, backend abre http://127.0.0.1:<puerto> en navegador.
+5. Si puerto ocupado, fallback a otro puerto e informar en logs.
+
+Ventaja:
+- Usuario final solo instala 1 ejecutable.
+- No requiere Node, npm ni Go.
+- UX simple: doble click y usar.
+
+Adicional para instalador:
+- Crear acceso directo en escritorio.
+- Registrar desinstalador.
+- Opcion "iniciar con Windows" (opcional).
+- Regla de firewall local si aplica.
+
+============================================================
+6) CHECKLIST DE EMPAQUETADO (RELEASE)
+============================================================
+Checklist minimo:
+[ ] Build frontend produccion
+[ ] Integrar frontend en backend
+[ ] Build backend release (ldflags)
+[ ] Probar en maquina limpia sin Node/Go
+[ ] Crear installer (Inno/NSIS)
+[ ] Firma de codigo (ideal para confianza)
+[ ] Versionado semantico
+[ ] Changelog y notas de version
+
+Pruebas antes de publicar:
+[ ] Inicia con doble click
+[ ] Abre navegador automaticamente
+[ ] Ejecuta scan basico
+[ ] Ejecuta scan avanzado sin crash
+[ ] Maneja backend caido/puerto ocupado
+[ ] Logs y errores claros para usuario
+
+============================================================
+7) SEGURIDAD, CUMPLIMIENTO Y USO RESPONSABLE
+============================================================
+Recomendado para release publica:
+1. Banner/legal de uso autorizado.
+2. Modo seguro por defecto.
+3. Guardrails de frecuencia y concurrencia.
+4. Trazabilidad de ejecucion (logs con timestamp).
+5. Documentacion de alcance y limitaciones.
+
+Sugerencia:
+- Mantener banderas de autorizacion para modulos activos.
+- Separar claramente modo auditoria vs modo activo.
+
+============================================================
+8) OTRAS MEJORAS QUE TE CONVIENEN
+============================================================
+1. Historial de escaneos (SQLite local).
+2. Exportacion PDF/JSON formal para reportes.
+3. Plantillas de remediacion por hallazgo.
+4. Sistema de perfiles: Rapido / Completo / Cumplimiento.
+5. Cola de tareas y progreso por modulo en tiempo real.
+6. Modulo Blue Team dedicado:
+   - hardening score
+   - baseline CIS-like
+   - plan de remediacion priorizado
+
+============================================================
+9) ESTADO ACTUAL
+============================================================
+Estado general: estable para continuar como plataforma.
+
+Cambios aplicados recientemente:
+- Fix de crash por arrays null en frontend.
+- Mejor tolerancia en render de resultados.
+- Inicializacion de slices en backend para evitar null JSON.
+- Eliminacion completa de emojis de la interfaz.
+
+============================================================
+10) COMANDO BASE DE DESARROLLO
+============================================================
+Backend:
+- go run ./cmd/api
+
+Frontend:
+- npm run dev
+
+Build:
+- backend: go build ./cmd/api
+- frontend: npm run build
+
+============================================================
+FIN DEL DOCUMENTO
+============================================================

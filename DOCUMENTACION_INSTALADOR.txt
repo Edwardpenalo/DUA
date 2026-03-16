@@ -1,0 +1,57 @@
+DUA - DOCUMENTACION DEL INSTALADOR EXE (WINDOWS)
+Fecha: 2026-03-16
+
+OBJETIVO
+- Generar instalador para usuario final (Next, Next, Finish)
+- Entregar aplicacion en un solo ejecutable funcional (DUA.exe)
+
+ARCHIVOS CREADOS
+1) installer/DUA_Setup.iss
+   Script de Inno Setup para generar DUA-Setup.exe
+
+2) scripts/build-installer.ps1
+   Automatiza:
+   - build frontend
+   - copiado de dist a backend/internal/webui/dist
+   - build del ejecutable unico backend/DUA.exe
+   - limpieza de exe viejos
+   - compilacion de instalador si ISCC.exe existe
+
+RUTA DEL EJECUTABLE FINAL
+- backend/DUA.exe
+
+RUTA DEL INSTALADOR FINAL (si Inno Setup esta instalado)
+- installer/output/DUA-Setup.exe
+
+COMO GENERAR TODO
+1) Abre PowerShell en la raiz del proyecto (DUA)
+2) Ejecuta:
+   powershell -ExecutionPolicy Bypass -File .\scripts\build-installer.ps1
+
+SI NO GENERA EL INSTALADOR
+- Significa que no encontro Inno Setup (ISCC.exe)
+- Instala Inno Setup 6 y vuelve a correr el script
+
+COMPORTAMIENTO AL INSTALAR
+- Instala DUA en Program Files
+- Crea acceso directo en menu inicio
+- Opcion de acceso directo en escritorio
+- Opcion de ejecutar DUA al finalizar instalacion
+
+COMPORTAMIENTO AL EJECUTAR DUA.EXE
+- Levanta servidor local (por defecto puerto 8080)
+- Sirve frontend embebido en /
+- API disponible en /api/scan
+- Intenta abrir navegador automaticamente
+
+VARIABLES DE ENTORNO UTILES
+- PORT=8080 (puerto del servidor)
+- DUA_OPEN_BROWSER=false (evita abrir navegador automatico)
+
+VALIDACION RAPIDA
+1) Ejecutar backend/DUA.exe
+2) Abrir http://127.0.0.1:8080
+3) Probar endpoint http://127.0.0.1:8080/api/health
+
+NOTA
+- Este instalador es para Windows.

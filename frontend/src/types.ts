@@ -22,6 +22,7 @@ export interface ScanRequest {
   target: string;
   modules: ModuleId[];
   mode?: ScanMode;
+  i_have_authorization?: boolean;
   options: ScanOptions;
 }
 
@@ -249,12 +250,6 @@ export interface BugBountyOpportunity {
   evidence: string;
   location: string;
   proof?: string;
-}
-
-// Existing types
-export interface ModuleError {
-  module: string;
-  message: string;
 }
 
 export interface HTTPResult {

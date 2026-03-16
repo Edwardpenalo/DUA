@@ -52,7 +52,10 @@ func (e *Enumerator) Run(ctx context.Context, target string) (*scan.SubdomainRes
 	log.Printf("[subdomain] Starting enumeration for %s", target)
 
 	domain := extractDomain(target)
-	result := &scan.SubdomainResult{Subdomains: []scan.SubdomainInfo{}}
+	result := &scan.SubdomainResult{
+		Subdomains: []scan.SubdomainInfo{},
+		Wildcards:  []string{},
+	}
 
 	// Passive sources
 	subs, _ := e.passiveEnumerate(ctx, domain)
