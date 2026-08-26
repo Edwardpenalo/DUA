@@ -9,6 +9,9 @@ go build .cmd/api/main.go
 ejecutar frontend npm run dev
 
 # DUA Scanner
+<img width="1895" height="932" alt="image" src="https://github.com/user-attachments/assets/e6a8b55b-52c7-4dc0-b1a5-0fc0bb837eb4" />
+
+<img width="1811" height="886" alt="image" src="https://github.com/user-attachments/assets/87820830-3f95-4cda-b172-6996e75b90d7" />
 
 Herramienta de auditoría/recon con backend en Go y frontend en React (Vite).
 
